@@ -1,17 +1,22 @@
-FROM node:22-slim AS builder
+# --- Build Stage ---
+FROM node:24-alpine AS builder
 
-# install git to install plugins
-RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
 
-WORKDIR /usr/src/app
-COPY package.json .
-COPY package-lock.json* .
-COPY quartz/ ./quartz/
-COPY quartz.lock.json .
-RUN npm ci; npx quartz plugin install
+# Copy dependency and lockfiles
+COPY package.json package-lock.json* quartz.lock.json* ./
 
-FROM node:22-slim
-WORKDIR /usr/src/app
-COPY --from=builder /usr/src/app/ /usr/src/app/
+# Install npm dependencies
+RUN npm ci
+
+# Copy everything else (including .quartz/plugins if pre-built, and content)
 COPY . .
-CMD ["npx", "quartz", "build", "--serve"]
+
+# Install Quartz community plugins, then build
+RUN npx quartz plugin install && npx quartz build
+
+# --- Production Stage ---
+FROM nginx:alpine
+COPY --from=builder /app/public /usr/share/nginx/html
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
