@@ -1,5 +1,8 @@
 # --- Build Stage ---
-FROM node:24-alpine AS builder
+FROM node:24-slim AS builder
+
+# Install git (required for npm to fetch Quartz plugins)
+RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -9,7 +12,7 @@ COPY package.json package-lock.json* quartz.lock.json* ./
 # Install npm dependencies
 RUN npm ci
 
-# Copy everything else (including .quartz/plugins if pre-built, and content)
+# Copy everything else
 COPY . .
 
 # Install Quartz community plugins, then build
